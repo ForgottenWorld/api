@@ -57,15 +57,14 @@ func main() {
 		json.NewEncoder(w).Encode(keys)
 	})
 
-	for k, _ := range servers {
-		http.HandleFunc("/"+k, view)
-	}
+	http.HandleFunc("/serben/", view)
 
 	log.Fatal(http.ListenAndServe(":8001", nil))
 }
 
 func view(w http.ResponseWriter, r *http.Request) {
-	if pinger, ok := servers[r.URL.EscapedPath()[1:]]; ok {
+	k := r.URL.EscapedPath()[len("/serben/"):]
+	if pinger, ok := servers[k]; ok {
 		info, _ := pinger.Ping()
 		if info == nil {
 			w.WriteHeader(http.StatusServiceUnavailable)
