@@ -67,6 +67,10 @@ func main() {
 func view(w http.ResponseWriter, r *http.Request) {
 	if pinger, ok := servers[r.URL.EscapedPath()[1:]]; ok {
 		info, _ := pinger.Ping()
+		if info == nil {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
 		s := &Serben{info.Players.Online, info.Players.Max}
 		json.NewEncoder(w).Encode(s)
 		return
