@@ -58,16 +58,18 @@ func main() {
 	})
 
 	for k, _ := range servers {
-		http.HandleFunc("/"+k, func(w http.ResponseWriter, r *http.Request) {
-			if pinger, ok := servers[r.URL.EscapedPath()[1:]]; ok {
-				info, _ := pinger.Ping()
-				s := &Serben{info.Players.Online, info.Players.Max}
-				json.NewEncoder(w).Encode(s)
-			} else {
-				w.WriteHeader(http.StatusNotFound)
-			}
-		})
+		http.HandleFunc("/"+k, view)
 	}
 
 	log.Fatal(http.ListenAndServe(":8001", nil))
+}
+
+func view(w http.ResponseWriter, r *http.Request) {
+	if pinger, ok := servers[r.URL.EscapedPath()[1:]]; ok {
+		info, _ := pinger.Ping()
+		s := &Serben{info.Players.Online, info.Players.Max}
+		json.NewEncoder(w).Encode(s)
+		return
+	}
+	w.WriteHeader(http.StatusNotFound)
 }
