@@ -49,6 +49,14 @@ func main() {
 		servers[k] = mcpinger.New(s[0], uint16(port))
 	}
 
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		keys := make([]string, 0, len(servers))
+		for k := range servers {
+				keys = append(keys, k)
+		}
+		json.NewEncoder(w).Encode(keys)
+	})
+
 	for k, _ := range servers {
 		http.HandleFunc("/"+k, func(w http.ResponseWriter, r *http.Request) {
 			if pinger, ok := servers[r.URL.EscapedPath()[1:]]; ok {
