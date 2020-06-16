@@ -77,5 +77,5 @@ func view(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(s)
 		return
 	}
-	w.WriteHeader(http.StatusNotFound)
+	http.NotFound(w, r)
 }
