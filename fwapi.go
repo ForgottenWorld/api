@@ -49,7 +49,7 @@ func main() {
 		servers[k] = mcpinger.New(s[0], uint16(port))
 	}
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/servers", func(w http.ResponseWriter, r *http.Request) {
 		keys := make([]string, 0, len(servers))
 		for k := range servers {
 			keys = append(keys, k)
