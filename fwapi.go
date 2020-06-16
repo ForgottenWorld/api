@@ -52,7 +52,7 @@ func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		keys := make([]string, 0, len(servers))
 		for k := range servers {
-				keys = append(keys, k)
+			keys = append(keys, k)
 		}
 		json.NewEncoder(w).Encode(keys)
 	})
