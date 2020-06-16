@@ -54,6 +54,9 @@ func main() {
 		for k := range servers {
 			keys = append(keys, k)
 		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET")
 		json.NewEncoder(w).Encode(keys)
 	})
 
