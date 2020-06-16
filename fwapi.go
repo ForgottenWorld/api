@@ -13,6 +13,7 @@ import (
 )
 
 var servers = make(map[string]mcpinger.Pinger)
+var keys []string
 
 type Serben struct {
 	Online uint `json:"online"`
@@ -36,6 +37,7 @@ func main() {
 		log.Fatal(err)
 	}
 
+	keys := make([]string, 0, len(tmp))
 	for k, v := range tmp {
 		s := strings.Split(v, ":")
 		if len(s) != 2 {
@@ -47,13 +49,10 @@ func main() {
 		}
 		log.Println("Found serben ", k, " with ip ", s[0], " on port ", port)
 		servers[k] = mcpinger.New(s[0], uint16(port))
+		keys = append(keys, k)
 	}
 
 	http.HandleFunc("/servers", func(w http.ResponseWriter, r *http.Request) {
-		keys := make([]string, 0, len(servers))
-		for k := range servers {
-			keys = append(keys, k)
-		}
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET")
