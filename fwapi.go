@@ -42,7 +42,7 @@ func init() {
 	keys := make([]string, 0, len(tmp))
 	for k, v := range tmp {
 		s := strings.Split(v, ":")
-		if len(s) != 2 {
+		if len(s) != 2 { //nolint: go-mnd
 			log.Fatal("Malformed serben: ", s)
 		}
 
