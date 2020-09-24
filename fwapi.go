@@ -27,7 +27,7 @@ func init() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer jsonServers.Close()
+	defer jsonServers.Close() // nolint: errcheck
 
 	bytesServers, err := ioutil.ReadAll(jsonServers)
 	if err != nil {
