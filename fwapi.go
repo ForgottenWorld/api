@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
-	"os"
 	"strconv"
 	"strings"
 
@@ -23,13 +22,7 @@ type serben struct {
 }
 
 func init() {
-	jsonServers, err := os.Open("servers.json")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer jsonServers.Close() // nolint: errcheck
-
-	bytesServers, err := ioutil.ReadAll(jsonServers)
+	bytesServers, err := ioutil.ReadFile("servers.json")
 	if err != nil {
 		log.Fatal(err)
 	}
