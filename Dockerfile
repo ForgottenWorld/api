@@ -24,7 +24,7 @@ RUN go mod download
 RUN go mod verify
 
 # Copy the source from the current directory to the Working Directory inside the container
-COPY fwapi.go .
+COPY main.go .
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
       -ldflags='-w -s -extldflags "-static"' -a \
