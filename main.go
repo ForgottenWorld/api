@@ -103,8 +103,8 @@ func viewHandler(ctx *fasthttp.RequestCtx) {
 			return
 		}
 		serv := struct {
-			Online uint
-			Max    uint
+			Online uint `json:"online"`
+			Max    uint `json:"max"`
 		}{info.Players.Online, info.Players.Max}
 
 		s, _ := json.Marshal(serv)
