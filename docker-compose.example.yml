@@ -1,0 +1,10 @@
+version: "3.8"
+services:
+  api:
+    build: .
+    environment:
+      PTERO_API_KEY: "apikey"
+      PANEL: "https://pterodactyl.example.com/"
+    ports:
+      - "8001:8001"
+
