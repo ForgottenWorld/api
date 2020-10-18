@@ -143,33 +143,9 @@ func refresh() error {
 			continue
 		}
 		if _, ok := nodes[s.Attributes.Node]; !ok {
-			jrsp1 := struct {
-				Data []struct {
-					Attributes struct {
-						ID       int
-						IP       string
-						Port     uint16
-						Assigned bool
-					} `json:"attributes"`
-				} `json:"data"`
-			}{}
-			b, err := getAllocs(s.Attributes.Node)
+			allocs, err := getAllocations(s.Attributes.Node)
 			if err != nil {
 				return err
-			}
-
-			if err := json.Unmarshal(b, &jrsp1); err != nil {
-				return err
-			}
-
-			allocs := make(map[int]mcpinger.Pinger, len(jrsp.Data))
-			for _, a := range jrsp1.Data {
-				if !a.Attributes.Assigned {
-					log.Printf("Skipping unassigned alloc %d at %s:%d", a.Attributes.ID, a.Attributes.IP, a.Attributes.Port)
-					continue
-				}
-				log.Printf("Found alloc %d at %s:%d", a.Attributes.ID, a.Attributes.IP, a.Attributes.Port)
-				allocs[a.Attributes.ID] = mcpinger.New(a.Attributes.IP, a.Attributes.Port)
 			}
 			nodes[s.Attributes.Node] = allocs
 		}
@@ -202,6 +178,39 @@ func getServers() ([]byte, error) {
 	}
 
 	return resp.Body(), nil
+}
+
+func getAllocations(node int) (map[int]mcpinger.Pinger, error) {
+	jrsp := struct {
+		Data []struct {
+			Attributes struct {
+				ID       int
+				IP       string
+				Port     uint16
+				Assigned bool
+			} `json:"attributes"`
+		} `json:"data"`
+	}{}
+	b, err := getAllocs(node)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := json.Unmarshal(b, &jrsp); err != nil {
+		return nil, err
+	}
+
+	allocs := make(map[int]mcpinger.Pinger)
+	for _, a := range jrsp.Data {
+		if !a.Attributes.Assigned {
+			log.Printf("Skipping unassigned alloc %d at %s:%d", a.Attributes.ID, a.Attributes.IP, a.Attributes.Port)
+			continue
+		}
+		log.Printf("Found alloc %d at %s:%d", a.Attributes.ID, a.Attributes.IP, a.Attributes.Port)
+		allocs[a.Attributes.ID] = mcpinger.New(a.Attributes.IP, a.Attributes.Port)
+	}
+
+	return allocs, nil
 }
 
 func getAllocs(node int) ([]byte, error) {
