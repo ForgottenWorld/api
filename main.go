@@ -26,7 +26,9 @@ func init() {
 	apiKey = os.Getenv("PTERO_API_KEY")
 	panel = os.Getenv("PANEL")
 
-	refresh()
+	if err := refresh(); err != nil {
+		log.Fatalf("Error in init: %s", err)
+	}
 }
 
 func main() {
@@ -78,7 +80,11 @@ func refreshHandler(ctx *fasthttp.RequestCtx) {
 		return
 	}
 	lastRefresh = time.Now()
-	refresh()
+	if err := refresh(); err != nil {
+		log.Printf("Error in refreshHandler: %s", err)
+		ctx.Response.SetStatusCode(fasthttp.StatusInternalServerError)
+		return
+	}
 	ctx.Response.SetBody([]byte("[\"OK\"]"))
 	ctx.Response.SetStatusCode(fasthttp.StatusOK)
 }
@@ -110,8 +116,11 @@ func viewHandler(ctx *fasthttp.RequestCtx) {
 	ctx.Error("Unsupported path", fasthttp.StatusNotFound)
 }
 
-func refresh() {
-	ss := getServers()
+func refresh() error {
+	ss, err := getServers()
+	if err != nil {
+		return err
+	}
 	jrsp := struct {
 		Data []struct {
 			Attributes struct {
@@ -122,7 +131,9 @@ func refresh() {
 			} `json:"attributes"`
 		} `json:"data"`
 	}{}
-	json.Unmarshal(ss, &jrsp)
+	if err := json.Unmarshal(ss, &jrsp); err != nil {
+		return err
+	}
 
 	keys := make([]string, 0, len(jrsp.Data))
 	nodes := make(map[int]map[int]mcpinger.Pinger, len(jrsp.Data))
@@ -142,7 +153,14 @@ func refresh() {
 					} `json:"attributes"`
 				} `json:"data"`
 			}{}
-			json.Unmarshal(getAllocs(s.Attributes.Node), &jrsp1)
+			b, err := getAllocs(s.Attributes.Node)
+			if err != nil {
+				return err
+			}
+
+			if err := json.Unmarshal(b, &jrsp1); err != nil {
+				return err
+			}
 
 			allocs := make(map[int]mcpinger.Pinger, len(jrsp.Data))
 			for _, a := range jrsp1.Data {
@@ -164,10 +182,11 @@ func refresh() {
 		}
 	}
 
-	serverList, _ = json.Marshal(keys)
+	serverList, err = json.Marshal(keys)
+	return err
 }
 
-func getServers() []byte {
+func getServers() ([]byte, error) {
 	req := fasthttp.AcquireRequest()
 	resp := fasthttp.AcquireResponse()
 	defer fasthttp.ReleaseRequest(req)
@@ -177,12 +196,15 @@ func getServers() []byte {
 	req.Header.SetContentType("application/json")
 	req.Header.Set("Authorization", "Bearer "+apiKey)
 
-	fasthttp.Do(req, resp)
+	err := fasthttp.Do(req, resp)
+	if err != nil {
+		return []byte{}, err
+	}
 
-	return resp.Body()
+	return resp.Body(), nil
 }
 
-func getAllocs(node int) []byte {
+func getAllocs(node int) ([]byte, error) {
 	n := strconv.Itoa(node)
 	req := fasthttp.AcquireRequest()
 	resp := fasthttp.AcquireResponse()
@@ -193,7 +215,10 @@ func getAllocs(node int) []byte {
 	req.Header.SetContentType("application/json")
 	req.Header.Set("Authorization", "Bearer "+apiKey)
 
-	fasthttp.Do(req, resp)
+	err := fasthttp.Do(req, resp)
+	if err != nil {
+		return []byte{}, err
+	}
 
-	return resp.Body()
+	return resp.Body(), nil
 }
