@@ -74,7 +74,7 @@ func listHandler(ctx *fasthttp.RequestCtx) {
 
 func refreshHandler(ctx *fasthttp.RequestCtx) {
 	elapsed := time.Since(lastRefresh)
-	if elapsed.Seconds() < 10 {
+	if elapsed.Seconds() < 10 { //nolint: go-mnd
 		ctx.Response.SetBody([]byte("[\"Cached\"]"))
 		ctx.Response.SetStatusCode(fasthttp.StatusFound)
 		return
