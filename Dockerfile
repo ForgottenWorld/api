@@ -36,13 +36,9 @@ COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /etc/passwd /etc/passwd
 COPY --from=builder /etc/group /etc/group
 
-COPY servers.json servers.json
 COPY --from=builder /go/bin/fwapi /go/bin/fwapi
 
 USER appuser:appuser
-
-# Expose port 8001 to the outside world
-EXPOSE 8001
 
 # Command to run the executable
 ENTRYPOINT ["/go/bin/fwapi"]
