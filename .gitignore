@@ -1,2 +1,16 @@
-servers.json
-Dockerfile
+*
+!*/
+
+!main.go
+!go.mod
+!go.sum
+!Dockerfile
+!docker-compose.example.json
+
+# include markdowns
+!LICENSE
+!README.md
+
+# include git important files
+!.gitignore
+!.github/**
