@@ -135,8 +135,8 @@ func refresh() {
 			jrsp1 := struct {
 				Data []struct {
 					Attributes struct {
-						Id       int
-						Ip       string
+						ID       int
+						IP       string
 						Port     uint16
 						Assigned bool
 					} `json:"attributes"`
@@ -147,11 +147,11 @@ func refresh() {
 			allocs := make(map[int]mcpinger.Pinger, len(jrsp.Data))
 			for _, a := range jrsp1.Data {
 				if !a.Attributes.Assigned {
-					log.Printf("Skipping unassigned alloc %d at %s:%d", a.Attributes.Id, a.Attributes.Ip, a.Attributes.Port)
+					log.Printf("Skipping unassigned alloc %d at %s:%d", a.Attributes.ID, a.Attributes.IP, a.Attributes.Port)
 					continue
 				}
-				log.Printf("Found alloc %d at %s:%d", a.Attributes.Id, a.Attributes.Ip, a.Attributes.Port)
-				allocs[a.Attributes.Id] = mcpinger.New(a.Attributes.Ip, a.Attributes.Port)
+				log.Printf("Found alloc %d at %s:%d", a.Attributes.ID, a.Attributes.IP, a.Attributes.Port)
+				allocs[a.Attributes.ID] = mcpinger.New(a.Attributes.IP, a.Attributes.Port)
 			}
 			nodes[s.Attributes.Node] = allocs
 		}
