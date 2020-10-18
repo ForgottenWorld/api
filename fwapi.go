@@ -3,10 +3,11 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"io/ioutil"
 	"log"
+	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/valyala/fasthttp"
 
@@ -14,42 +15,18 @@ import (
 )
 
 var servers = make(map[string]mcpinger.Pinger)
-var keysBytes []byte
+var serverList []byte
 
-type serben struct {
-	Online uint `json:"online"`
-	Max    uint `json:"max"`
-}
+var apiKey string
+var panel string
+
+var lastRefresh time.Time
 
 func init() {
-	bytesServers, err := ioutil.ReadFile("servers.json")
-	if err != nil {
-		log.Fatal(err)
-	}
+	apiKey = os.Getenv("PTERO_API_KEY")
+	panel = os.Getenv("PANEL")
 
-	var tmp map[string]string
-	if err := json.Unmarshal(bytesServers, &tmp); err != nil {
-		log.Fatal(err)
-	}
-
-	keys := make([]string, 0, len(tmp))
-	for k, v := range tmp {
-		s := strings.Split(v, ":")
-		if len(s) != 2 { //nolint: go-mnd
-			log.Fatal("Malformed serben: ", s)
-		}
-
-		port, err := strconv.Atoi(s[1])
-		if err != nil {
-			log.Fatal("Invalid port: ", s[1])
-		}
-
-		log.Println("Found serben ", k, " with ip ", s[0], " on port ", port)
-
-		servers[k] = mcpinger.New(s[0], uint16(port))
-		keys = append(keys, k)
-	}
-	keysBytes, _ = json.Marshal(keys)
+	refresh()
 }
 
 func main() {
@@ -75,6 +52,11 @@ func fastHTTPHandler(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
+	if bytes.Equal(path, []byte("/refresh")) {
+		refreshHandler(ctx)
+		return
+	}
+
 	if bytes.HasPrefix(path, []byte("/server/")) {
 		viewHandler(ctx)
 		return
@@ -84,19 +66,40 @@ func fastHTTPHandler(ctx *fasthttp.RequestCtx) {
 }
 
 func listHandler(ctx *fasthttp.RequestCtx) {
-	ctx.Response.SetBody(keysBytes)
+	ctx.Response.SetBody(serverList)
+	ctx.Response.SetStatusCode(fasthttp.StatusOK)
+}
+
+func refreshHandler(ctx *fasthttp.RequestCtx) {
+	elapsed := time.Since(lastRefresh)
+	if elapsed.Seconds() < 10 {
+		ctx.Response.SetBody([]byte("[\"Cached\"]"))
+		ctx.Response.SetStatusCode(fasthttp.StatusFound)
+		return
+	}
+	lastRefresh = time.Now()
+	refresh()
+	ctx.Response.SetBody([]byte("[\"OK\"]"))
 	ctx.Response.SetStatusCode(fasthttp.StatusOK)
 }
 
 func viewHandler(ctx *fasthttp.RequestCtx) {
 	k := ctx.Request.RequestURI()[len("/server/"):]
 	if pinger, ok := servers[string(k)]; ok {
-		info, _ := pinger.Ping()
+		info, err := pinger.Ping()
+		if err != nil {
+			log.Println(err)
+			ctx.Response.Header.SetStatusCode(fasthttp.StatusServiceUnavailable)
+			return
+		}
 		if info == nil {
 			ctx.Response.Header.SetStatusCode(fasthttp.StatusServiceUnavailable)
 			return
 		}
-		serv := serben{info.Players.Online, info.Players.Max}
+		serv := struct {
+			Online uint
+			Max    uint
+		}{info.Players.Online, info.Players.Max}
 
 		s, _ := json.Marshal(serv)
 		ctx.Response.SetBody(s)
@@ -105,4 +108,92 @@ func viewHandler(ctx *fasthttp.RequestCtx) {
 	}
 
 	ctx.Error("Unsupported path", fasthttp.StatusNotFound)
+}
+
+func refresh() {
+	ss := getServers()
+	jrsp := struct {
+		Data []struct {
+			Attributes struct {
+				Name        string
+				Description string
+				Allocation  int
+				Node        int
+			} `json:"attributes"`
+		} `json:"data"`
+	}{}
+	json.Unmarshal(ss, &jrsp)
+
+	keys := make([]string, 0, len(jrsp.Data))
+	nodes := make(map[int]map[int]mcpinger.Pinger, len(jrsp.Data))
+	for _, s := range jrsp.Data {
+		if !strings.Contains(s.Attributes.Description, "[api=true]") {
+			log.Printf("Skipping server: %s", s.Attributes.Name)
+			continue
+		}
+		if _, ok := nodes[s.Attributes.Node]; !ok {
+			jrsp1 := struct {
+				Data []struct {
+					Attributes struct {
+						Id       int
+						Ip       string
+						Port     uint16
+						Assigned bool
+					} `json:"attributes"`
+				} `json:"data"`
+			}{}
+			json.Unmarshal(getAllocs(s.Attributes.Node), &jrsp1)
+
+			allocs := make(map[int]mcpinger.Pinger, len(jrsp.Data))
+			for _, a := range jrsp1.Data {
+				if !a.Attributes.Assigned {
+					log.Printf("Skipping unassigned alloc %d at %s:%d", a.Attributes.Id, a.Attributes.Ip, a.Attributes.Port)
+					continue
+				}
+				log.Printf("Found alloc %d at %s:%d", a.Attributes.Id, a.Attributes.Ip, a.Attributes.Port)
+				allocs[a.Attributes.Id] = mcpinger.New(a.Attributes.Ip, a.Attributes.Port)
+			}
+			nodes[s.Attributes.Node] = allocs
+		}
+
+		if pinger, ok := nodes[s.Attributes.Node][s.Attributes.Allocation]; ok {
+			servers[s.Attributes.Name] = pinger
+			keys = append(keys, s.Attributes.Name)
+		} else {
+			log.Printf("Missing allocs for server: %s", s.Attributes.Name)
+		}
+	}
+
+	serverList, _ = json.Marshal(keys)
+}
+
+func getServers() []byte {
+	req := fasthttp.AcquireRequest()
+	resp := fasthttp.AcquireResponse()
+	defer fasthttp.ReleaseRequest(req)
+	defer fasthttp.ReleaseResponse(resp)
+
+	req.SetRequestURI(panel + "api/application/servers")
+	req.Header.SetContentType("application/json")
+	req.Header.Set("Authorization", "Bearer "+apiKey)
+
+	fasthttp.Do(req, resp)
+
+	return resp.Body()
+}
+
+func getAllocs(node int) []byte {
+	n := strconv.Itoa(node)
+	req := fasthttp.AcquireRequest()
+	resp := fasthttp.AcquireResponse()
+	defer fasthttp.ReleaseRequest(req)
+	defer fasthttp.ReleaseResponse(resp)
+
+	req.SetRequestURI(panel + "api/application/nodes/" + n + "/allocations")
+	req.Header.SetContentType("application/json")
+	req.Header.Set("Authorization", "Bearer "+apiKey)
+
+	fasthttp.Do(req, resp)
+
+	return resp.Body()
 }
