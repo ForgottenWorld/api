@@ -49,6 +49,11 @@ func fastHTTPHandler(ctx *fasthttp.RequestCtx) {
 
 	path := ctx.Path()
 
+	if bytes.Equal(path, []byte("/")) {
+		ctx.Response.SetStatusCode(fasthttp.StatusOK)
+		return
+	}
+
 	if bytes.Equal(path, []byte("/servers")) {
 		listHandler(ctx)
 		return
@@ -90,7 +95,7 @@ func refreshHandler(ctx *fasthttp.RequestCtx) {
 }
 
 func viewHandler(ctx *fasthttp.RequestCtx) {
-	k := ctx.Request.RequestURI()[len("/server/"):]
+	k := ctx.Path()[len("/server/"):]
 	if pinger, ok := servers[string(k)]; ok {
 		info, err := pinger.Ping()
 		if err != nil {
@@ -151,6 +156,7 @@ func refresh() error {
 		}
 
 		if pinger, ok := nodes[s.Attributes.Node][s.Attributes.Allocation]; ok {
+			log.Printf("Found server: %s", s.Attributes.Name)
 			servers[s.Attributes.Name] = pinger
 			keys = append(keys, s.Attributes.Name)
 		} else {
@@ -203,10 +209,8 @@ func getAllocations(node int) (map[int]mcpinger.Pinger, error) {
 	allocs := make(map[int]mcpinger.Pinger)
 	for _, a := range jrsp.Data {
 		if !a.Attributes.Assigned {
-			log.Printf("Skipping unassigned alloc %d at %s:%d", a.Attributes.ID, a.Attributes.IP, a.Attributes.Port)
 			continue
 		}
-		log.Printf("Found alloc %d at %s:%d", a.Attributes.ID, a.Attributes.IP, a.Attributes.Port)
 		allocs[a.Attributes.ID] = mcpinger.New(a.Attributes.IP, a.Attributes.Port)
 	}
 
