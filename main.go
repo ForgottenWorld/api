@@ -95,7 +95,7 @@ func refreshHandler(ctx *fasthttp.RequestCtx) {
 }
 
 func viewHandler(ctx *fasthttp.RequestCtx) {
-	k := ctx.Request.RequestURI()[len("/server/"):]
+	k := ctx.Path()[len("/server/"):]
 	if pinger, ok := servers[string(k)]; ok {
 		info, err := pinger.Ping()
 		if err != nil {
