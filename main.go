@@ -156,6 +156,7 @@ func refresh() error {
 		}
 
 		if pinger, ok := nodes[s.Attributes.Node][s.Attributes.Allocation]; ok {
+			log.Printf("Found server: %s", s.Attributes.Name)
 			servers[s.Attributes.Name] = pinger
 			keys = append(keys, s.Attributes.Name)
 		} else {
@@ -208,10 +209,8 @@ func getAllocations(node int) (map[int]mcpinger.Pinger, error) {
 	allocs := make(map[int]mcpinger.Pinger)
 	for _, a := range jrsp.Data {
 		if !a.Attributes.Assigned {
-			log.Printf("Skipping unassigned alloc %d at %s:%d", a.Attributes.ID, a.Attributes.IP, a.Attributes.Port)
 			continue
 		}
-		log.Printf("Found alloc %d at %s:%d", a.Attributes.ID, a.Attributes.IP, a.Attributes.Port)
 		allocs[a.Attributes.ID] = mcpinger.New(a.Attributes.IP, a.Attributes.Port)
 	}
 
