@@ -49,6 +49,11 @@ func fastHTTPHandler(ctx *fasthttp.RequestCtx) {
 
 	path := ctx.Path()
 
+	if bytes.Equal(path, []byte("/")) {
+		ctx.Response.SetStatusCode(fasthttp.StatusOK)
+		return
+	}
+
 	if bytes.Equal(path, []byte("/servers")) {
 		listHandler(ctx)
 		return
