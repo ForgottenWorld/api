@@ -45,7 +45,7 @@ func main() {
 			return c.Path() != "/reload"
 		},
 		Max:        1,
-		Expiration: 10 * time.Second,
+		Expiration: 10 * time.Second, //nolint: go-mnd
 		KeyGenerator: func(c *fiber.Ctx) string {
 			return "key"
 		},
@@ -57,7 +57,7 @@ func main() {
 		Next: func(c *fiber.Ctx) bool {
 			return c.Path() == "/reload"
 		},
-		Expiration: 3 * time.Second,
+		Expiration: 3 * time.Second, //nolint: go-mnd
 	}))
 
 	app.Get("/servers", list)
@@ -67,7 +67,9 @@ func main() {
 		return c.SendStatus(fiber.StatusOK)
 	})
 
-	app.Listen(":8001")
+	if err := app.Listen(":8001"); err != nil {
+		log.Fatal(err)
+	}
 }
 
 func list(c *fiber.Ctx) error {
@@ -146,6 +148,9 @@ func refresh() error {
 
 func loadServers() ([]byte, error) {
 	req, err := http.NewRequest(http.MethodGet, panel+"api/application/servers", nil)
+	if err != nil {
+		return []byte{}, err
+	}
 	req.Header.Set("Content-type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+apiKey)
 
@@ -154,7 +159,7 @@ func loadServers() ([]byte, error) {
 		return []byte{}, err
 	}
 
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint: errcheck
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return []byte{}, err
@@ -196,6 +201,9 @@ func loadAllocs(node int) ([]byte, error) {
 	n := strconv.Itoa(node)
 
 	req, err := http.NewRequest(http.MethodGet, panel+"api/application/nodes/"+n+"/allocations", nil)
+	if err != nil {
+		return []byte{}, err
+	}
 	req.Header.Set("Content-type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+apiKey)
 
@@ -204,7 +212,7 @@ func loadAllocs(node int) ([]byte, error) {
 		return []byte{}, err
 	}
 
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint: errcheck
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return []byte{}, err
